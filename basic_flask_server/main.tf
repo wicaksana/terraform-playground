@@ -16,8 +16,9 @@ terraform {
 }
 
 provider "google" {
-    project = "<PROJECT-ID>"
+#    project = "<PROJECT-ID>"
     region = "us-central1"
+    zone = "us-central1-c"
 }
 
 resource "google_compute_network" "vpc_network" {
