@@ -25,6 +25,12 @@ resource "google_compute_instance" "default" {
         }
     }
 
+    shielded_instance_config {
+        enable_secure_boot = true
+        enable_vtpm = true
+        enable_integrity_monitoring = true
+    }
+
     # install Flask
     metadata_startup_script = "sudo apt-get update; sudo apt-get install -yq build-essential python3-pip rsync; pip install flask"
     network_interface {
