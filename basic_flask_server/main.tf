@@ -1,5 +1,24 @@
 # Following this tutorial https://cloud.google.com/docs/terraform/get-started-with-terraform
 
+terraform {
+    required_providers {
+      google = {
+        source = "hashicorp/google"
+        version = "~> 4.60.0"
+    }
+
+    backend "gcs" {
+      bucket = "wicaksana-terraform-state"
+      prefix = "terraform/state"
+    }
+    
+}
+
+provider "google" {
+    project = "<PROJECT-ID>"
+    region = "us-central1"
+}
+
 resource "google_compute_network" "vpc_network" {
     name                    = "my-custom-mode-network"
     auto_create_subnetworks = false
@@ -9,7 +28,6 @@ resource "google_compute_network" "vpc_network" {
 resource "google_compute_subnetwork" "default" {
     name                    = "my-custom-subnet"
     ip_cidr_range           = "10.0.1.0/24"
-    region                  = "us-west1"
     network                 = google_compute_network.vpc_network.id
 }
 
@@ -17,7 +35,6 @@ resource "google_compute_subnetwork" "default" {
 resource "google_compute_instance" "default" {
     name                    = "flask-vm"
     machine_type            = "f1-micro"
-    zone                    = "us-west1-a"
     tags                    = ["ssh"]
     boot_disk {
         initialize_params {
