@@ -24,9 +24,13 @@ resource "google_container_cluster" "main_cluster" {
   initial_node_count       = 1
   deletion_protection      = false # just to make it simpler to destroy later.
   monitoring_config {
+    enable_components = ["SYSTEM_COMPONENTS"]
     managed_prometheus {
       enabled = true
     }
+  }
+  logging_config {
+    enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
   }
 }
 
