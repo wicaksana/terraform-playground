@@ -12,10 +12,41 @@ provider "google" {
   region  = var.gcp_region
 }
 
+###########################################################
+# Service account & IAM roles
+###########################################################
 resource "google_service_account" "default_sa" {
-  account_id   = "default-sa-id"
-  display_name = "GKE SA - main cluster"
+  account_id   = "default-sa"
+  display_name = "GKE SA - ${var.cluster_name}"
 }
+
+resource "google_project_iam_binding" "default_sa_iam_binding_logwriter" {
+  project = var.gcp_project_id
+  role    = "roles/logging.logWriter"
+  members = [
+    "serviceAccount:${google_service_account.default_sa.email}"
+  ]
+}
+
+resource "google_project_iam_binding" "default_sa_iam_binding_metadatawriter" {
+  project = var.gcp_project_id
+  role    = "roles/stackdriver.resourceMetadata.writer"
+  members = [
+    "serviceAccount:${google_service_account.default_sa.email}"
+  ]
+}
+
+resource "google_project_iam_binding" "default_sa_iam_binding_metricwriter" {
+  project = var.gcp_project_id
+  role    = "roles/monitoring.metricWriter"
+  members = [
+    "serviceAccount:${google_service_account.default_sa.email}"
+  ]
+}
+
+###########################################################
+# GKE cluster & node pool
+###########################################################
 
 resource "google_container_cluster" "main_cluster" {
   name                     = var.cluster_name
