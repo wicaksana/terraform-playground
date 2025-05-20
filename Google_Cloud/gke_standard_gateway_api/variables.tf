@@ -12,6 +12,6 @@ variable "gcp_region" {
 variable "cluster_name" {
   description = "Cluster name"
   type        = string
-  default     = "main-cluster"
+  default     = "gtw-cluster"
 }
 

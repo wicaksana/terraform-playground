@@ -16,7 +16,7 @@ provider "google" {
 # Service account & IAM roles
 ###########################################################
 resource "google_service_account" "default_sa" {
-  account_id   = "default-sa"
+  account_id   = "${var.cluster_name}-sa"
   display_name = "GKE SA - ${var.cluster_name}"
 }
 
@@ -93,7 +93,7 @@ resource "google_container_cluster" "main_cluster" {
   subnetwork = google_compute_subnetwork.custom_vpc_subnet1.id
 
   ip_allocation_policy {
-    cluster_secondary_range_name = "pod-ranges"
+    cluster_secondary_range_name = "pod-range"
     services_secondary_range_name = "services-range" 
   }
 }

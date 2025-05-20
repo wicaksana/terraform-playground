@@ -16,7 +16,7 @@ provider "google" {
 # Service account & IAM roles
 ###########################################################
 resource "google_service_account" "default_sa" {
-  account_id   = "default-sa"
+  account_id   = "${var.cluster_name}-sa"
   display_name = "GKE SA - ${var.cluster_name}"
 }
 
@@ -45,6 +45,29 @@ resource "google_project_iam_binding" "default_sa_iam_binding_metricwriter" {
 }
 
 ###########################################################
+# New VPC network and subnet(s)
+###########################################################
+resource "google_compute_network" "custom_vpc" {
+  project = var.gcp_project_id
+  name = "${var.cluster_name}-vpc"
+  auto_create_subnetworks = false
+}
+
+resource "google_compute_subnetwork" "custom_vpc_subnet1" {
+  name = "${google_compute_network.custom_vpc.name}-subnet1"
+  network = google_compute_network.custom_vpc.id
+  ip_cidr_range = "10.200.0.0/16"
+  region = var.gcp_region
+  secondary_ip_range {
+    range_name = "services-range"
+    ip_cidr_range = "192.168.1.0/24"
+  }
+  secondary_ip_range {
+    range_name = "pod-ranges"
+    ip_cidr_range = "192.168.64.0/22"
+  }
+}
+###########################################################
 # GKE cluster & node pool
 ###########################################################
 
@@ -54,22 +77,33 @@ resource "google_container_cluster" "main_cluster" {
   remove_default_node_pool = true
   initial_node_count       = 1
   deletion_protection      = false # just to make it simpler to destroy later.
+  
   monitoring_config {
     enable_components = ["SYSTEM_COMPONENTS"]
     managed_prometheus {
       enabled = true
     }
   }
+  
   logging_config {
     enable_components = ["SYSTEM_COMPONENTS", "WORKLOADS"]
   }
+
   gateway_api_config {
     channel = "CHANNEL_STANDARD"
+  }
+
+  network = google_compute_network.custom_vpc.id
+  subnetwork = google_compute_subnetwork.custom_vpc_subnet1.id
+
+  ip_allocation_policy {
+    cluster_secondary_range_name = "pod-ranges"
+    services_secondary_range_name = "services-range" 
   }
 }
 
 resource "google_container_node_pool" "main_cluster_preemptible_node" {
-  name       = "main-cluster-node-pool"
+  name       = "${var.cluster_name}-node-pool"
   location   = var.gcp_region
   cluster    = google_container_cluster.main_cluster.name
   node_count = 1
@@ -83,3 +117,13 @@ resource "google_container_node_pool" "main_cluster_preemptible_node" {
     ]
   }
 }
+
+###########################################################
+# Static IP for the external LB
+###########################################################
+resource "google_compute_address" "ip_address" {
+  name         = "${var.cluster_name}-ext-lb-address"
+  address_type = "EXTERNAL" # make it explicit.
+  region       = var.gcp_region
+}
+  
