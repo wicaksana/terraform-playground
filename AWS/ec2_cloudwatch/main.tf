@@ -82,14 +82,55 @@ resource "aws_vpc_security_group_egress_rule" "server_sg_egress_allow_all" {
   ip_protocol       = "-1"
 }
 
-# 7. EC2 instance.
-resource "aws_instance" "server" {
+# 7. IAM role to be attached to the instance.
+data "aws_iam_policy_document" "ec2_cw_agent_role_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["ec2.amazonaws.com"]
+    }
+  }
+}
 
+resource "aws_iam_role" "ec2_cw_agent_role" {
+  name               = "CloudWatchAgentServerRole"
+  assume_role_policy = data.aws_iam_policy_document.ec2_cw_agent_role_policy.json
+}
+
+# Attach CloudWatchAgentServerPolicy to the IAM role
+# This policy grants permissions to write metrics, logs, and traces to CloudWatch.
+resource "aws_iam_role_policy_attachment" "cw_agent_policy_attachment" {
+  role       = aws_iam_role.ec2_cw_agent_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+# SSM managed instance core 
+resource "aws_iam_role_policy_attachment" "ssm_core_policy_attachment" {
+  role       = aws_iam_role.ec2_cw_agent_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# X-Ray core 
+resource "aws_iam_role_policy_attachment" "xray_policy_attachment" {
+  role       = aws_iam_role.ec2_cw_agent_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess"
+}
+
+resource "aws_iam_instance_profile" "ec2_cw_agent_instance_profile" {
+  name = "EC2CWAgentInstanceProfile"
+  role = aws_iam_role.ec2_cw_agent_role.name
+}
+
+# . EC2 instance.
+resource "aws_instance" "server" {
   ami                         = var.ami_id
   instance_type               = var.instance_type
+  iam_instance_profile        = aws_iam_instance_profile.ec2_cw_agent_instance_profile.name
   subnet_id                   = aws_subnet.main_subnet.id
   vpc_security_group_ids      = [aws_security_group.server_sg.id]
   associate_public_ip_address = true
+  monitoring                  = true
   key_name                    = var.key_name
   tags = {
     Name = "${var.project_name}-instance"
@@ -98,9 +139,12 @@ resource "aws_instance" "server" {
               #!/bin/bash
               yum update -y
               yum install -y httpd
+              yum install -y amazon-cloudwatch-agent
               systemctl start httpd
               systemctl enable httpd
               echo "<h1>Hello World: $(hostname -f)</h1>" > /var/www/html/index.html
               EOF
 }
+
+
 

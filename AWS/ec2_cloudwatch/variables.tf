@@ -6,7 +6,7 @@ variable "region" {
 
 variable "project_name" {
   description = "Project name; used as tag value"
-  default     = "simple-ec2-server"
+  default     = "monitored-server"
   type        = string
 }
 
